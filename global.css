@@ -1,0 +1,112 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+@import "nativewind/theme";
+
+@theme {
+  --color-lingua-purple: #6C4EF5;
+  --color-lingua-deep-purple: #5B3BF6;
+  --color-lingua-blue: #4D8BFF;
+  --color-lingua-green: #21C16B;
+  --color-lingua-success: #21C16B;
+  --color-lingua-warning: #FFC800;
+  --color-lingua-streak: #FF8A00;
+  --color-lingua-error: #FF4D4F;
+  --color-lingua-info: #4D8BFF;
+  --color-lingua-text-primary: #0D132B;
+  --color-lingua-text-secondary: #6B7280;
+  --color-lingua-border: #E5E7EB;
+  --color-lingua-surface: #F6F7FB;
+  --color-lingua-background: #FFFFFF;
+
+  --font-poppins: Poppins-Regular;
+  --font-poppins-medium: Poppins-Medium;
+  --font-poppins-semibold: Poppins-SemiBold;
+  --font-poppins-bold: Poppins-Bold;
+}
+
+:root {
+  --font-sans: Poppins-Regular;
+  --font-mono: monospace;
+  --font-rounded: Poppins-SemiBold;
+  --font-serif: Poppins-Regular;
+}
+
+@layer utilities {
+  .h1 {
+    font-family: Poppins-Bold;
+    font-size: 32px;
+    line-height: 38px;
+  }
+
+  .h2 {
+    font-family: Poppins-SemiBold;
+    font-size: 24px;
+    line-height: 31px;
+  }
+
+  .h3 {
+    font-family: Poppins-SemiBold;
+    font-size: 20px;
+    line-height: 26px;
+  }
+
+  .h4 {
+    font-family: Poppins-Medium;
+    font-size: 16px;
+    line-height: 22px;
+  }
+
+  .body-lg {
+    font-family: Poppins-Regular;
+    font-size: 16px;
+    line-height: 26px;
+  }
+
+  .body-md {
+    font-family: Poppins-Regular;
+    font-size: 14px;
+    line-height: 22px;
+  }
+
+  .body-sm {
+    font-family: Poppins-Regular;
+    font-size: 13px;
+    line-height: 21px;
+  }
+
+  .caption {
+    font-family: Poppins-Regular;
+    font-size: 11px;
+    line-height: 15px;
+  }
+
+  .layout__screen {
+    flex: 1;
+    background-color: #FFFFFF;
+  }
+
+  .layout__surface {
+    background-color: #F6F7FB;
+  }
+
+  .card__base {
+    background-color: #FFFFFF;
+    border-width: 1px;
+    border-color: #E5E7EB;
+    border-radius: 16px;
+  }
+
+  .button__primary {
+    background-color: #6C4EF5;
+    border-radius: 16px;
+  }
+
+  .button__secondary {
+    background-color: #F6F7FB;
+    border-width: 1px;
+    border-color: #E5E7EB;
+    border-radius: 16px;
+  }
+}
