@@ -69,7 +69,7 @@ export default function OnboardingScreen() {
             />
           </View>
 
-          <Link href="/" asChild>
+          <Link href="/sign-up" asChild>
             <TouchableOpacity activeOpacity={0.86} style={styles.ctaButton}>
               <Text style={styles.ctaLabel}>Get Started</Text>
               <Text style={styles.ctaArrow}>
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   ctaButton: {
-    minHeight: 75,
+    minHeight: 65,
     width: "100%",
     marginTop: 32,
     paddingHorizontal: 32,

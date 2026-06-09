@@ -84,8 +84,8 @@ See `./references/route-structure.md` for detailed route conventions.
 - `expo-video` not `expo-av`
 - `expo-image` with `source="sf:name"` for SF Symbols, not `expo-symbols` or `@expo/vector-icons`
 - `react-native-safe-area-context` not react-native SafeAreaView
-- `process.env.EXPO_OS` not `Platform.OS`
-- `React.use` not `React.useContext`
+- `process.env.EXPO_OS` (SDK 51+) for bundle-time platform detection fixed at build/bundle time; use `Platform.OS` for runtime platform checks
+- `React.use` (SDK 55 / React 19.2) is a valid newer alternative to `React.useContext`; keep using `React.useContext` for explicit context access and compatibility, and use `React.use` when adopting the newer React 19 APIs
 - `expo-image` Image component instead of intrinsic element `img`
 - `expo-glass-effect` for liquid glass backdrops
 
@@ -132,13 +132,15 @@ Follow Apple Human Interface Guidelines.
 
 ## Shadows
 
-Use CSS `boxShadow` style prop. NEVER use legacy React Native shadow or elevation styles.
+Use CSS `boxShadow` style prop when your app is running on React Native 0.76+ with the New Architecture enabled on iOS and Android. On Android, outset shadows require Android 9+ and inset shadows require Android 10+.
+
+For older React Native versions or projects without the New Architecture, provide a fallback using legacy React Native `shadow*` or `elevation` styles.
 
 ```tsx
 <View style={{ boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)" }} />
 ```
 
-'inset' shadows are supported.
+'inset' shadows are supported when the platform and RN version allow it.
 
 # Navigation
 
