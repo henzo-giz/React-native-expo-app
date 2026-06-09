@@ -1,9 +1,16 @@
-import { Text, View } from '@/tw';
+import { Link } from 'expo-router';
+
+import { Text, TouchableOpacity, View } from '@/tw';
 
 export default function TabOneScreen() {
   return (
-    <View className="flex-1 items-center justify-center">
+    <View className="flex-1 items-center justify-center gap-6 bg-white px-8">
       <Text className="h2 text-center text-lingua-purple">Home</Text>
+      <Link href="/onboarding" asChild>
+        <TouchableOpacity className="button__primary min-h-14 w-full items-center justify-center rounded-2xl px-6">
+          <Text className="font-poppins-semibold text-base text-black">Open onboarding</Text>
+        </TouchableOpacity>
+      </Link>
     </View>
   );
 
