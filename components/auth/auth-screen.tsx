@@ -1,4 +1,7 @@
+import { isClerkAPIResponseError, useSSO } from "@clerk/expo";
+import { useSignIn, useSignUp } from "@clerk/expo/legacy";
 import { Feather, FontAwesome } from "@expo/vector-icons";
+import * as Linking from "expo-linking";
 import { Link, router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -25,12 +28,33 @@ type AuthScreenProps = {
 };
 
 const SOCIAL_OPTIONS = [
-  { label: "Continue with Google", icon: "google", color: "#4285F4" },
-  { label: "Continue with Facebook", icon: "facebook", color: "#1877F2" },
-  { label: "Continue with Apple", icon: "apple", color: "#06112E" },
+  { label: "Continue with Google", icon: "google", color: "#4285F4", strategy: "oauth_google" },
+  { label: "Continue with Facebook", icon: "facebook", color: "#1877F2", strategy: "oauth_facebook" },
+  { label: "Continue with Apple", icon: "apple", color: "#06112E", strategy: "oauth_apple" },
 ] as const;
 
+type VerificationMode = "sign-up" | "sign-in";
+
+type EmailCodeFactor = {
+  strategy: "email_code";
+  emailAddressId: string;
+  safeIdentifier: string;
+};
+
+function getAuthErrorMessage(error: unknown) {
+  if (isClerkAPIResponseError(error)) {
+    return error.errors[0]?.longMessage ?? error.errors[0]?.message ?? "Authentication failed.";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Authentication failed. Please try again.";
+}
+
 export function AuthScreen({
+  mode,
   title,
   subtitle,
   buttonLabel,
@@ -39,16 +63,24 @@ export function AuthScreen({
   footerHref,
   showPassword = false,
 }: AuthScreenProps) {
+  const { signIn, setActive: setSignInActive, isLoaded: isSignInLoaded } = useSignIn();
+  const { signUp, setActive: setSignUpActive, isLoaded: isSignUpLoaded } = useSignUp();
+  const { startSSOFlow } = useSSO();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isVerificationVisible, setIsVerificationVisible] = useState(false);
+  const [verificationMode, setVerificationMode] = useState<VerificationMode>(mode);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const inputRefs = useRef<(NativeTextInput | null)[]>([]);
 
-  const openVerification = () => {
+  const openVerification = (nextMode: VerificationMode) => {
+    setVerificationMode(nextMode);
     setCode(["", "", "", "", "", ""]);
+    setErrorMessage("");
     setIsVerificationVisible(true);
   };
 
@@ -58,6 +90,148 @@ export function AuthScreen({
       return () => clearTimeout(focusTimer);
     }
   }, [isVerificationVisible]);
+
+  const completeAuth = async (sessionId: string | null | undefined, activeSetter: typeof setSignInActive) => {
+    if (!sessionId || !activeSetter) {
+      setErrorMessage("We could not create a session. Please try again.");
+      return;
+    }
+
+    await activeSetter({ session: sessionId });
+    setIsVerificationVisible(false);
+    router.replace("/");
+  };
+
+  const handleEmailAuth = async () => {
+    if (!email.trim() || (mode === "sign-up" && !password)) {
+      setErrorMessage("Please fill in the required fields.");
+      return;
+    }
+
+    if (!isSignInLoaded || !isSignUpLoaded) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      if (mode === "sign-up") {
+        await signUp.create({ emailAddress: email.trim(), password });
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+        openVerification("sign-up");
+        return;
+      }
+
+      const signInAttempt = await signIn.create({ identifier: email.trim() });
+      const emailCodeFactor = signInAttempt.supportedFirstFactors?.find(
+        (factor): factor is EmailCodeFactor =>
+          factor.strategy === "email_code" &&
+          "emailAddressId" in factor &&
+          typeof factor.emailAddressId === "string",
+      );
+
+      if (!emailCodeFactor) {
+        setErrorMessage("Email code sign in is not enabled for this account.");
+        return;
+      }
+
+      await signIn.prepareFirstFactor({
+        strategy: "email_code",
+        emailAddressId: emailCodeFactor.emailAddressId,
+      });
+      openVerification("sign-in");
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyCode = async (verificationCode = code.join("")) => {
+    if (verificationCode.length < 6 || !isSignInLoaded || !isSignUpLoaded) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      if (verificationMode === "sign-up") {
+        const completeSignUp = await signUp.attemptEmailAddressVerification({
+          code: verificationCode,
+        });
+
+        await completeAuth(completeSignUp.createdSessionId, setSignUpActive);
+        return;
+      }
+
+      const completeSignIn = await signIn.attemptFirstFactor({
+        strategy: "email_code",
+        code: verificationCode,
+      });
+
+      await completeAuth(completeSignIn.createdSessionId, setSignInActive);
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!isSignInLoaded || !isSignUpLoaded) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      if (verificationMode === "sign-up") {
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      } else {
+        const emailCodeFactor = signIn.supportedFirstFactors?.find(
+          (factor): factor is EmailCodeFactor =>
+            factor.strategy === "email_code" &&
+            "emailAddressId" in factor &&
+            typeof factor.emailAddressId === "string",
+        );
+
+        if (emailCodeFactor) {
+          await signIn.prepareFirstFactor({
+            strategy: "email_code",
+            emailAddressId: emailCodeFactor.emailAddressId,
+          });
+        }
+      }
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSocialAuth = async (strategy: (typeof SOCIAL_OPTIONS)[number]["strategy"]) => {
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy,
+        redirectUrl: Linking.createURL("sso-callback"),
+      });
+
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
+        router.replace("/");
+      }
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleCodeChange = (value: string, index: number) => {
     const digit = value.replace(/\D/g, "").slice(-1);
@@ -70,8 +244,7 @@ export function AuthScreen({
     }
 
     if (digit && index === inputRefs.current.length - 1) {
-      setIsVerificationVisible(false);
-      router.replace("/");
+      void handleVerifyCode(nextCode.join(""));
     }
   };
 
@@ -158,7 +331,14 @@ export function AuthScreen({
             ) : null}
           </View>
 
-          <TouchableOpacity activeOpacity={0.88} style={styles.primaryButton} onPress={openVerification}>
+          {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            style={[styles.primaryButton, isSubmitting && styles.disabledButton]}
+            disabled={isSubmitting}
+            onPress={handleEmailAuth}
+          >
             <Text style={styles.primaryButtonText}>{buttonLabel}</Text>
           </TouchableOpacity>
 
@@ -170,7 +350,13 @@ export function AuthScreen({
 
           <View className="gap-3">
             {SOCIAL_OPTIONS.map((option) => (
-              <TouchableOpacity key={option.label} activeOpacity={0.82} style={styles.socialButton}>
+              <TouchableOpacity
+                key={option.label}
+                activeOpacity={0.82}
+                style={[styles.socialButton, isSubmitting && styles.disabledButton]}
+                disabled={isSubmitting}
+                onPress={() => handleSocialAuth(option.strategy)}
+              >
                 <FontAwesome name={option.icon} size={31} color={option.color} style={styles.socialIcon} />
                 <Text style={styles.socialButtonText}>{option.label}</Text>
               </TouchableOpacity>
@@ -217,6 +403,15 @@ export function AuthScreen({
                   />
                 ))}
               </View>
+              {errorMessage ? <Text style={styles.modalErrorText}>{errorMessage}</Text> : null}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.resendButton}
+                disabled={isSubmitting}
+                onPress={handleResendCode}
+              >
+                <Text style={styles.resendButtonText}>Send a new code</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -314,6 +509,16 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-semibold",
     fontSize: 19,
   },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  errorText: {
+    marginTop: 14,
+    color: "#FF3F2E",
+    fontFamily: "Poppins-Medium",
+    fontSize: 13,
+    textAlign: "center",
+  },
   socialButton: {
     minHeight: 50,
     borderRadius: 18,
@@ -381,5 +586,23 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-SemiBold",
     fontSize: 22,
     padding: 0,
+  },
+  modalErrorText: {
+    marginTop: 14,
+    color: "#FF3F2E",
+    fontFamily: "Poppins-Medium",
+    fontSize: 13,
+    textAlign: "center",
+  },
+  resendButton: {
+    minHeight: 44,
+    marginTop: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  resendButtonText: {
+    color: "#5B3BF6",
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 15,
   },
 });

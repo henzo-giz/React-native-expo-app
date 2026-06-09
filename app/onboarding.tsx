@@ -1,4 +1,5 @@
-import { Link } from "expo-router";
+import { useAuth } from "@clerk/expo";
+import { Link, Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -7,8 +8,17 @@ import { images } from "@/constants/images";
 import { Image, ScrollView, Text, TouchableOpacity, View } from "@/tw";
 
 export default function OnboardingScreen() {
+  const { isLoaded, isSignedIn } = useAuth();
   const { width } = useWindowDimensions();
   const artworkSize = Math.min(width * 0.86, 390);
+
+  if (!isLoaded) {
+    return null;
+  }
+
+  if (isSignedIn) {
+    return <Redirect href="/" />;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
