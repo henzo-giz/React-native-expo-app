@@ -1,5 +1,5 @@
 import { useClerk } from '@clerk/expo';
-import { Link, router } from 'expo-router';
+import { type Href, Link, router } from 'expo-router';
 
 import { Text, TouchableOpacity, View } from '@/tw';
 
@@ -17,6 +17,13 @@ export default function TabOneScreen() {
       <Link href="/onboarding" asChild>
         <TouchableOpacity className="button__primary min-h-14 w-full items-center justify-center rounded-2xl px-6">
           <Text className="font-poppins-semibold text-base text-black">Open onboarding</Text>
+        </TouchableOpacity>
+      </Link>
+      <Link href={"/language-selection" as Href} asChild>
+        <TouchableOpacity className="button__secondary min-h-14 w-full items-center justify-center rounded-2xl px-6">
+          <Text className="font-poppins-semibold text-base text-lingua-text-primary">
+            Choose language
+          </Text>
         </TouchableOpacity>
       </Link>
       <TouchableOpacity
